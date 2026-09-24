@@ -1,7 +1,7 @@
 name: Build Android APK
 on:
   push:
-    branches: [ main, головний ]
+    branches: [ головний ]
 
 jobs:
   build:
@@ -15,11 +15,11 @@ jobs:
       with:
         node-version: 20
 
-    - name: Install Dependencies
+    - name: Prepare Project
       run: |
         npm init -y
-        npm install @capacitor/core @capacitor/cli @capacitor/android
-        npx cap init Moggram com.example.moggram --web-dir=.
+        npm install @capacitor/core@5.7.0 @capacitor/cli@5.7.0 @capacitor/android@5.7.0
+        npx cap init Moggram com.example.moggram --web-dir=. --no-open
 
     - name: Add Android Platform
       run: |
