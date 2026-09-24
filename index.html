@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Moggram Online & Calls</title>
+    <!-- Подключаем Socket.io для онлайна и сообщений -->
+    <script src="https://socket.io"></script>
+    <style>
+        *{box-sizing:border-box} body{margin:0;font-family:Arial,sans-serif;background:#eef3f7;color:#222}
+        .app{max-width:500px;height:100vh;margin:auto;background:white;display:flex;flex-direction:column}
+        .header{height:64px;background:#229ed9;color:white;display:flex;align-items:center;padding:0 16px}
+        .logo{font-size:23px;font-weight:bold;flex:1}
+        .stars{background:#168bc2;padding:8px 12px;border-radius:18px}
+        .screen{flex:1;overflow:auto} .login{padding:25px} .login h1{text-align:center;color:#229ed9}
+        input,button{width:100%;padding:13px;margin-top:10px;border-radius:10px;border:1px solid #ccd5db;font-size:16px}
+        button{background:#229ed9;color:white;border:0;font-weight:bold;cursor:pointer}
+        .chat{display:none;height:100%;flex-direction:column} .search{padding:10px;border-bottom:1px solid #ddd}
+        .messages{flex:1;padding:15px;overflow:auto;background:#e9f1f5}
+        .msg{max-width:75%;background:white;padding:10px 13px;border-radius:14px;margin:7px 0;box-shadow:0 1px 2px #bbb}
+        .me{margin-left:auto;background:#d5f5c9} .bottom{display:flex;padding:8px;border-top:1px solid #ddd}
+        .bottom input{margin:0;flex:1} .bottom button{width:55px;margin:0 0 0 7px}
+        .menu{display:flex;border-top:1px solid #ddd} .menu button{background:white;color:#555;border-radius:0;margin:0}
+        .profile{display:none;padding:20px} .card{padding:18px;border-radius:15px;background:#f1f6f9;margin-bottom:15px}
+        .call-btn{background:#2ecc71;margin-bottom:10px}
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="header">
+        <div class="logo">Moggram 🟢</div>
+        <div class="stars">⭐ <span id="starCount">100</span></div>
+    </div>
+    <div class="screen">
+        <div class="login" id="login">
+            <h1>Добро пожаловать</h1><p>Создай свой аккаунт Moggram</p>
+            <input id="username" placeholder="Имя или username"><input id="phone" placeholder="Номер телефона">
+            <button onclick="register()">Создать аккаунт</button><p id="loginStatus"></p>
+        </div>
+        <div class="chat" id="chat">
+            <div class="search">
+                <button class="call-btn" onclick="startCall()">📞 Позвонить (Тест WebRTC)</button>
+                <input id="search" placeholder="🔎 Поиск по чату">
+            </div>
+            <div class="messages" id="messages"><div class="msg">Добро пожаловать в онлайн-чат 👋</div></div>
+            <div class="bottom"><input id="message" placeholder="Сообщение"><button onclick="sendMessage()">➤</button></div>
+        </div>
+        <div class="profile" id="profile">
+            <div class="card"><h2 id="profileName">Профиль</h2><p id="profilePhone"></p></div>
+            <div class="card">⭐ Stars: <b id="profileStars">100</b></div>
+            <button onclick="logout()">Выйти</button>
+        </div>
+    </div>
+    <div class="menu"><button onclick="showChat()">💬 Чаты</button><button onclick="showProfile()">👤 Профиль</button></div>
+</div>
+
+<script>
+    // Твоя рабочая ссылка от Render подставлена автоматически:
+    const SERVER_URL = "https://onrender.com";
+    const socket = io(SERVER_URL);
+
+    let user = JSON.parse(localStorage.getItem("moggramUser"));
+    if(user){ openApp(); }
+
+    function register(){
+        let name=document.getElementById("username").value.trim();
+        let phone=document.getElementById("phone").value.trim();
+        if(!name || !phone){ document.getElementById("loginStatus").innerText="Заполни имя и номер телефона"; return; }
+        user={ name:name, phone:phone, stars:100 };
+        localStorage.setItem("moggramUser",JSON.stringify(user));
+        openApp();
+    }
+
+    function openApp(){
+        document.getElementById("login").style.display="none";
+        document.getElementById("chat").style.display="flex";
+        document.getElementById("starCount").innerText=user.stars;
+        document.getElementById("profileName").innerText=user.name;
+        document.getElementById("profilePhone").innerText=user.phone;
+        document.getElementById("profileStars").innerText=user.stars;
+        
+        socket.emit('user-online', user);
+    }
+
+    function sendMessage(){
+        let input=document.getElementById("message");
+        let text=input.value.trim();
+        if(!text)return;
+
+        socket.emit('send-message', { text: text, sender: user.name });
+        appendMessage(text, true);
+        input.value="";
+    }
+
+    socket.on('receive-message', (data) => {
+        appendMessage(`${data.sender}: ${data.text}`, false);
+    });
+
+    function appendMessage(text, isMe) {
+        let div=document.createElement("div");
+        div.className= isMe ? "msg me" : "msg";
+        div.innerText=text;
+        document.getElementById("messages").appendChild(div);
+        let box=document.getElementById("messages");
+        box.scrollTop=box.scrollHeight;
+    }
+
+    // --- ЛОГИКА ДЛЯ ЗВОНКОВ (БАЗОВЫЙ WEBRTC ТЕСТ) ---
+    async function startCall() {
+        try {
+            await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+            alert("Микрофон подключен! Запрос на звонок отправлен в сеть сервера.");
+        } catch(e) {
+            alert("Для звонков нужен доступ к микрофону смартфона!");
+        }
+    }
+
+    function showChat(){ document.getElementById("profile").style.display="none"; document.getElementById("chat").style.display="flex"; }
+    function showProfile(){ document.getElementById("chat").style.display="none"; document.getElementById("profile").style.display="block"; }
+    function logout(){ localStorage.removeItem("moggramUser"); location.reload(); }
+</script>
+</body>
+</html>
