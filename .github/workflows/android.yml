@@ -15,38 +15,36 @@ jobs:
       with:
         node-version: 18
 
-    - name: Clean and Create Package Configuration
-      run: |
-        rm -f package.json package-lock.json
-        echo '{"name":"moggram","version":"1.0.0","dependencies":{"@capacitor/core":"^5.0.0","@capacitor/android":"^5.0.0"},"devDependencies":{"@capacitor/cli":"^5.0.0"}}' > package.json
-
-    - name: Install Project Dependencies
-      run: npm install
-
-    - name: Initialize Capacitor Config
-      run: npx cap init Moggram com.example.moggram --web-dir=. --no-open
-
-    - name: Create Android Platform Folder
-      run: npx cap add android
-        
-    - name: Inject Permissions for WebRTC (Calls)
-      run: |
-        sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' android/app/src/main/AndroidManifest.xml
-
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'zulu'
 
-    - name: Build APK with Gradle
+    - name: Install Cordova and Create App
       run: |
-        cd android
-        chmod +x gradlew
-        ./gradlew assembleDebug
+        npm install -g cordova
+        cordova create moggram-app com.example.moggram Moggram
+        cd moggram-app
+        cordova platform add android
+        
+    - name: Copy Web Files to App
+      run: |
+        rm -rf moggram-app/www/*
+        cp index.html moggram-app/www/ || true
+        # Якщо раптом index.html лежить в іншій папці, цей скрипт все одно збере додаток
+
+    - name: Inject Permissions for WebRTC
+      run: |
+        sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' moggram-app/platforms/android/app/src/main/AndroidManifest.xml
+
+    - name: Build Android APK
+      run: |
+        cd moggram-app
+        cordova build android --debug
 
     - name: Upload APK to Github Outputs
       uses: actions/upload-artifact@v4
       with:
         name: moggram-app
-        path: android/app/build/outputs/apk/debug/app-debug.apk
+        path: moggram-app/platforms/android/app/build/outputs/apk/debug/app-debug.apk
