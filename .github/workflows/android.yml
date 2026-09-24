@@ -1,0 +1,48 @@
+name: Build Android APK
+on:
+  push:
+    branches: [ main, головний ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Source
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install Dependencies
+      run: |
+        npm init -y
+        npm install @capacitor/core @capacitor/cli @capacitor/android
+        npx cap init Moggram com.example.moggram --web-dir=.
+
+    - name: Add Android Platform
+      run: |
+        npx cap add android
+        
+    - name: Inject Permissions for WebRTC (Calls)
+      run: |
+        sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />' android/app/src/main/AndroidManifest.xml
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'zulu'
+
+    - name: Build APK with Gradle
+      run: |
+        cd android
+        chmod +x gradlew
+        ./gradlew assembleDebug
+
+    - name: Upload APK to Github Outputs
+      uses: actions/upload-artifact@v4
+      with:
+        name: moggram-app
+        path: android/app/build/outputs/apk/debug/app-debug.apk
